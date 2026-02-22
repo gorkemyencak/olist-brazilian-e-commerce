@@ -1,35 +1,30 @@
 import subprocess
 from pathlib import Path
+from kaggle.api.kaggle_api_extended import KaggleApi
 
 class KaggleDownloader:
 
     def __init__(
             self,
-            dataset_name: str,
+            kaggle_id: str,
             download_path: Path
     ):
-        self.dataset_name = dataset_name
+
+        self.kaggle_id = kaggle_id
         self.download_path = download_path
     
     def download(self):
-        print(f"Downloading Kaggle dataset: {self.dataset_name}")
+        print(f"Downloading Kaggle dataset: {self.kaggle_id}")
 
-        command = [
-            'kaggle',
-            'datasets',
-            'download',
-            '-d',
-            self.dataset_name,
-            '-p',
-            str(self.download_path),
-            '--unzip'
-        ]
+        self.download_path.mkdir(parents = True, exist_ok = True)
 
-        subprocess.run(
-            command,
-            check = True,
-            capture_output = True,
-            text = True
+        api = KaggleApi()
+        api.authenticate()
+
+        api.dataset_download_files(
+            self.kaggle_id,
+            path = self.download_path,
+            unzip = True
         )
 
         print("Download completed..")
