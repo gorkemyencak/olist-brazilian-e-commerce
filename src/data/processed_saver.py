@@ -7,7 +7,7 @@ class ProcessedSaver:
             key: str
     ):
         project_root = Path(__file__).resolve().parents[2]
-        self.dir = project_root / "data" / "processed" / "key"
+        self.dir = project_root / "data" / "processed" / key
         self.dir.mkdir(parents = True, exist_ok = True)
 
     def save(
@@ -17,7 +17,7 @@ class ProcessedSaver:
     ):
         df.to_csv(
             self.dir / name,
-            index = True
+            index = False
         )
 
         print(f"Saved processed: {name}")
