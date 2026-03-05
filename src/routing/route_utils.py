@@ -2,17 +2,20 @@ import pandas as pd
 import math
 
 """
-Route Utils will provide:
+Route Utils Module
+
     1) Travel time computation
     2) Route arrival time propogation
     3) Time-window feasibility check
     4) Route duration computation
-    5) Insertion feasilbility evaluation
+    5) Route travel distance computation
+    6) Insertion feasilbility evaluation
+    7) Marginal cost computation for insertion
 """
 
 ### 1) Travel Time Computation
 earth_radius_km = 6371
-orbital_speed_kmh = 29.78
+courier_speed_in_city_kmh = 30.00
 
 def haversine_distance(
         lat1,
@@ -20,6 +23,10 @@ def haversine_distance(
         lat2,
         lon2
 ):
+    
+    lat1, lon1, lat2, lon2 = map(
+        math.radians, [lat1, lon1, lat2, lon2]
+    )
     
     dlat = lat2 - lat1
     dlon = lon2 - lon1
@@ -52,14 +59,14 @@ def travel_time_minutes(
         lon2
     )
 
-    hours = distance_km / orbital_speed_kmh
+    hours = distance_km / courier_speed_in_city_kmh
     return 60 * hours
 
 
 ### 2) Route Arrival Time Propogation
 def compute_route_schedule(route, start_time):
     """
-    Given a route (list of jobs), compute arrival times.
+    Given a route (list of jobs), compute arrival/departure schedule for a courier route.
     It returns:
         - A bool feasibility variable,
         - A schedule including the list of dictionary
@@ -87,7 +94,7 @@ def compute_route_schedule(route, start_time):
         
         arrival_time = current_time + pd.Timedelta(minutes = travel_min)
 
-        # time-window check
+        # time-window check -> wait if early
         if arrival_time < job['ready_time']:
             arrival_time = job['ready_time']
 
@@ -110,11 +117,13 @@ def compute_route_schedule(route, start_time):
 
 ### 3) Route Time-Window Feasiblity Check
 def route_feasibility(route, start_time):
+    """ Checking whether route satisfies all time windows """
     feasibility, _ = compute_route_schedule(route, start_time)
     return feasibility
 
 ### 4) Route Duration Computation
 def route_duration(route, start_time):
+    """ Computing route completion time in minutes """
 
     feasibility, schedule = compute_route_schedule(route, start_time)
 
@@ -124,5 +133,68 @@ def route_duration(route, start_time):
     if not schedule:
         return 0
     
-    return(schedule[-1]['departure_time'] - start_time).total_seconds() / 60
+    duration = (
+        schedule[-1]['departure_time'] - start_time
+    ).total_seconds() / 60
+    
+    return duration
+
+### 5) Route Travel Distance Computation
+def route_distance(route):
+    """ Computing route travel distance for a route """
+
+    if len(route) < 2:
+        return 0
+    
+    distance = 0
+
+    for i in range(len(route) - 1):
+
+        job_1 = route[i]
+        job_2 = route[i+1]
+
+        distance += haversine_distance(
+            lat1 = job_1['delivery_lat'],
+            lon1 = job_1['delivery_lng'],
+            lat2 = job_2['delivery_lat'],
+            lon2 = job_2['delivery_lng']
+        )
+
+        return distance
+    
+### 6) Insertion feasibility
+def check_insertion_feasible(
+        route,
+        new_job,
+        position,
+        start_time
+):
+    """ Checking if inserting job at a position will violate the route feasiblility or not """
+
+    new_route = route.copy()
+
+    new_route.insert(position, new_job)
+
+    return route_feasibility(new_route, start_time)
+
+### 7) Marginal Cost Computation for Insertion
+def compute_insertion_cost(
+        route,
+        new_job,
+        position,
+        start_time
+):
+    """ Compute additional route duration after insertion """
+    cost = route_duration(route, start_time)
+
+    new_route = route.copy()
+    new_route.insert(position, new_job)
+
+    new_cost = route_duration(new_route, start_time)
+    if new_cost == float('inf'):
+        return float('inf')
+    
+    marginal_cost = new_cost - cost
+    return marginal_cost
+
 
