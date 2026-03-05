@@ -1,32 +1,60 @@
+"""
+Replacing the greedy earliest due-date insertion policy with time-window aware VRP greedy insertion policy:
+    1) Inserting new job at every possible position
+    2) Checking route feaibility (time-window aware)
+    3) Computing new route duration
+    4) Selecting the position with minimum additional cost
+"""
+import sys
+from pathlib import Path
+PROJECT_ROOT = Path().resolve().parents[0]
+sys.path.append(str(PROJECT_ROOT))
+from src.routing.route_utils import route_duration, route_feasibility
+
 class GreedyInsertionPolicy:
-    """ Decision rule -> Greedy earliest due-date insertion implementation """
 
-    def insert(self, state):
+    def select_courier(
+            self,
+            couriers,
+            job
+    ):
+        
+        best_courier = None
+        best_position = None
+        best_cost_increase = float('inf')
 
-        # sort by due data
-        state.active_jobs.sort(
-            key = lambda x: x['due_date']
-        )
+        for c in couriers:
+            current_route = c.route
+            start_time = c.current_time
 
-        # assign to first available courier:
-        for job in state.active_jobs:
+            # Current duration
+            current_duration = route_duration(
+                current_route,
+                start_time
+            )       
 
-            bool_assigned = False
+            # Enumerating all possible insertion positions
+            for pos in range(len(current_route) + 1):
+                
+                new_route = (
+                    current_route[:pos]
+                    + [job]
+                    + current_route[pos:]
+                )
 
-            for courier_id, courier in state.courier.items():
-                if courier['available_time'] <= state.current_time:
-                    courier['route'].append(job)
-                    courier['available_time'] = job['due_date']
+                if not route_feasibility(new_route, start_time):
+                    continue
 
-                    bool_assigned = True
-                    break
-            
-            if not bool_assigned:
-                # create new courier
-                new_courier_id = len(state.couriers) + 1
-                state.courier[new_courier_id] = {
-                    'route': [job],
-                    'available_time': job['due_date']
-                }
+                new_duration = route_duration(
+                    new_route, 
+                    start_time
+                )
 
+                cost_increase = new_duration - current_duration
 
+                if cost_increase < best_cost_increase:
+                    best_cost_increase = cost_increase
+                    best_courier = c
+                    best_position = pos
+        
+        return best_courier, best_position
