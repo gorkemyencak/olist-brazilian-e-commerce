@@ -17,7 +17,7 @@ class OrderStream:
 
             row = self.df.iloc[self.pointer]
 
-            if row['ready_time'] < current_time:
+            if row['ready_time'] <= current_time:
                 new_jobs.append(row)
                 self.pointer += 1
             

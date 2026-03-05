@@ -13,7 +13,7 @@ class SystemState:
     def __init__(self, current_time):
         self.current_time = current_time
         self.active_jobs = []
-        self.couriers = {}
+        self.couriers = []
     
     
     def add_jobs(self, jobs):
