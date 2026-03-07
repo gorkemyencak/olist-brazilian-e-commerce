@@ -4,10 +4,9 @@ from src.dynamicProgramming.courier import Courier
 
 """
 1) arrival of new jobs -> add to state.active_jobs
-2) remove finished jobs
-3) apply greedy time-window aware VRP insertion policy
-4) update routes
-5) remove completed jobs
+2) assigning active jobs using insertion policy
+3) update routes
+4) remove completed jobs
 """
 
 class DPScheduler:
@@ -16,11 +15,14 @@ class DPScheduler:
         self.insertion_policy = insertion_policy
         self.n_couriers = n_couriers
     
+
     def initialize_state(self, start_time):
 
         state = SystemState(current_time = start_time)
 
-        # initialize couriers
+        # initialize courier fleet
+        state.couriers = []
+
         for i in range(self.n_couriers):
             courier = Courier(
                 courier_id = i,
@@ -31,6 +33,7 @@ class DPScheduler:
         
         return state
     
+
     def update(self, state):
 
         # Step 1: remove completed jobs
@@ -42,9 +45,16 @@ class DPScheduler:
 
     def _assign_jobs(self, state):
 
+        if len(state.active_jobs) == 0:
+            return
+
         remaining_jobs = []
 
         for job in state.active_jobs:
+
+            # convert pandas row into dict if needed
+            if hasattr(job, 'to_dict'):
+                job = job.to_dict()
 
             courier, position = self.insertion_policy.select_courier(
                 couriers = state.couriers,
@@ -52,26 +62,31 @@ class DPScheduler:
             )
 
             if courier is not None:
+                # insert job into route
                 courier.route.insert(position, job)
             else:
                 # no feasible insertion
                 remaining_jobs.append(job)
         
+        # update active jobs
         state.active_jobs = remaining_jobs
 
     
     def _remove_completed_jobs(self, state):
+        """ Move jobs that have been completed (arrival time <= current time) from route to completed jobs """
 
         for courier in state.couriers:
-
+            # Execute jobs in the route sequentially if feasible
             remaining_route = []
 
             for job in courier.route:
 
-                # if job due_date not yet passed -> keep in remmaining route
-                if job['due_date'] > state.current_time:
+                if job['ready_time'] <= state.current_time:
+                    # if the job is ready and can be done now, execute it
+                    courier.execute_next_job()
+                else:
+                    # if job due_date not yet passed -> keep in remaining route
                     remaining_route.append(job)
             
             courier.route = remaining_route
-
-
+            

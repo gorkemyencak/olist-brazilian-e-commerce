@@ -24,6 +24,9 @@ class Simulator:
 
         while current_time <= end_time:
 
+            # updating system time
+            state.current_time = current_time
+
             new_jobs = self.stream.get_new_jobs(current_time)
             state.add_jobs(new_jobs)
 

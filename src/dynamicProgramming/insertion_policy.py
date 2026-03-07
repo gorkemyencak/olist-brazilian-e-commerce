@@ -2,14 +2,14 @@
 Replacing the greedy earliest due-date insertion policy with time-window aware VRP greedy insertion policy:
     1) Inserting new job at every possible position
     2) Checking route feaibility (time-window aware)
-    3) Computing new route duration
-    4) Selecting the position with minimum additional cost
+    3) Computing new route duration 
+    4) Selecting the position with minimum additional cost with regularized insertion cost
 """
 import sys
 from pathlib import Path
 PROJECT_ROOT = Path().resolve().parents[0]
 sys.path.append(str(PROJECT_ROOT))
-from src.routing.route_utils import route_feasibility, route_duration, compute_insertion_cost
+from src.routing.route_utils import route_duration, compute_insertion_cost
 
 class GreedyInsertionPolicy:
     """
@@ -21,14 +21,61 @@ class GreedyInsertionPolicy:
         - choose minimum insertion cost
     """
 
-    def __init__(self):
-        pass
+    def __init__(self, regularization_lambda = 2.0):
+        
+        """ Lambda term controls how strongly we penalize long routes """
+        self.regularization_lambda = regularization_lambda
+
+    
+    def select_courier(
+            self,
+            couriers,
+            job
+    ):
+        """ 
+        Interface used bu DPScheduler 
+        Parameters:
+            - couriers: list[Courier]
+                list of courier containers
+            - job: dict
+                delivery job
+        Returns:
+            - courier_object
+            - insertion_position
+        """
+
+        routes = {}
+        courier_lookup = {}
+
+        for courier in couriers:
+            routes[courier.courier_id] = courier.route
+            courier_lookup[courier.courier_id] = courier
+        
+
+        best_courier_id, best_position, best_cost = self.find_best_insertion(
+            routes,
+            job,
+            couriers
+        )
+
+        if best_courier_id is None:
+            return None, None
+
+        courier_obj = courier_lookup[best_courier_id]
+
+        # Debugging
+        print("Trying job:", job['job_id']) 
+        print("Feasible route found")
+        print(f"Assigning job {job['job_id']} to courier {courier_obj.courier_id} at position {best_position} with cost {best_cost}")
+
+        return courier_obj, best_position
+
 
     def find_best_insertion(
             self,
             routes,
             job,
-            start_time
+            couriers
     ):
         """ 
         Determining the best courier and position.
@@ -37,8 +84,7 @@ class GreedyInsertionPolicy:
                 {courier_id: route_list}
             - job: dict
                 delivery job
-            - start_time: timestamp
-                courier shift start
+            - couriers: list[Courier]
         Returns:
             - best courier
             - best position
@@ -50,6 +96,8 @@ class GreedyInsertionPolicy:
         best_position = None
 
         for courier_id, route in routes.items():
+            courier = next(c for c in couriers if c.courier_id == courier_id)
+            start_time = courier.current_time
 
             for pos in range(len(route) + 1):
 
@@ -60,10 +108,18 @@ class GreedyInsertionPolicy:
                     start_time
                 )
 
+                if cost is None:
+                    continue
+
+                cost += self.regularization_lambda * len(route)
+
                 if cost < best_cost:
                     best_cost = cost
                     best_courier = courier_id
                     best_position = pos
+            
+            # Debug
+            print(f"Courier {courier_id} current route cost: {best_cost}")
         
         return best_courier, best_position, best_cost
     
@@ -72,7 +128,7 @@ class GreedyInsertionPolicy:
             self,
             routes,
             job,
-            start_time
+            couriers
     ):
         """
         Insert job into best courier route
@@ -81,8 +137,7 @@ class GreedyInsertionPolicy:
                 {courier_id: route_list}
             - job: dict
                 delivery job
-            - start_time: timestamp
-                courier shift start
+            - couriers: list[Courier]
         Returns:
             - updated routes
             - assignment info
@@ -91,7 +146,7 @@ class GreedyInsertionPolicy:
         best_courier, best_position, best_cost = self.find_best_insertion(
             routes,
             job,
-            start_time
+            couriers
         )
 
         if best_courier is None:
@@ -116,7 +171,7 @@ class GreedyInsertionPolicy:
             self,
             routes,
             jobs,
-            start_time
+            couriers
     ):
         
         """
@@ -126,8 +181,7 @@ class GreedyInsertionPolicy:
                 courier routes
             - jobs: list
                 list of job dictionaries
-            - start_time: timestamp
-                courier shift start
+            - couriers: list[Courier]
         Returns:
             - routes
             - assignments
@@ -140,11 +194,11 @@ class GreedyInsertionPolicy:
             courier_routes, info = self.assign_job(
                 routes,
                 job,
-                start_time
+                couriers
             )
         
-        if info is not None:
-            assignments.append(info)
+            if info is not None:
+                assignments.append(info)
         
         return courier_routes, assignments
 
@@ -155,12 +209,13 @@ class GreedyInsertionPolicy:
             start_time            
     ):
         """ Computing route duration of all routes """
+
         total_duration = 0
 
-        for route in route.values():
+        for route in routes.values():
 
             total_duration += route_duration(
-                routes,
+                route,
                 start_time
             )
         

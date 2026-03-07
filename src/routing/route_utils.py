@@ -23,6 +23,7 @@ def haversine_distance(
         lat2,
         lon2
 ):
+    """ Computing distance in km between two lat/lng points"""
     
     lat1, lon1, lat2, lon2 = map(
         math.radians, [lat1, lon1, lat2, lon2]
@@ -69,7 +70,7 @@ def compute_route_schedule(route, start_time):
     Given a route (list of jobs), compute arrival/departure schedule for a courier route.
     It returns:
         - A bool feasibility variable,
-        - A schedule including the list of dictionary
+        - A schedule including the list of dictionary with arrival_time, departure_time
     """
 
     if len(route) == 0:
@@ -156,8 +157,8 @@ def route_distance(route):
         distance += haversine_distance(
             lat1 = job_1['delivery_lat'],
             lon1 = job_1['delivery_lng'],
-            lat2 = job_2['delivery_lat'],
-            lon2 = job_2['delivery_lng']
+            lat2 = job_2['pickup_lat'],
+            lon2 = job_2['pickup_lng']
         )
 
         return distance
