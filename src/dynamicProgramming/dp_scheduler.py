@@ -26,7 +26,9 @@ class DPScheduler:
         for i in range(self.n_couriers):
             courier = Courier(
                 courier_id = i,
-                start_time = start_time
+                start_time = start_time,
+                start_lat=-23.55,
+                start_lng=-46.63
             )
 
             state.couriers.append(courier)
@@ -63,7 +65,10 @@ class DPScheduler:
 
             if courier is not None:
                 # insert job into route
-                courier.route.insert(position, job)
+                courier.assign_job(
+                    job,
+                    position
+                )
             else:
                 # no feasible insertion
                 remaining_jobs.append(job)
@@ -77,16 +82,13 @@ class DPScheduler:
 
         for courier in state.couriers:
             # Execute jobs in the route sequentially if feasible
-            remaining_route = []
+            
+            while courier.route:
+                next_job = courier.route[0]
 
-            for job in courier.route:
-
-                if job['ready_time'] <= state.current_time:
+                if next_job['ready_time'] <= state.current_time:
                     # if the job is ready and can be done now, execute it
                     courier.execute_next_job()
                 else:
-                    # if job due_date not yet passed -> keep in remaining route
-                    remaining_route.append(job)
-            
-            courier.route = remaining_route
+                    break
             

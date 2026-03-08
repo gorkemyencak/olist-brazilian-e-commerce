@@ -63,11 +63,6 @@ class GreedyInsertionPolicy:
 
         courier_obj = courier_lookup[best_courier_id]
 
-        # Debugging
-        print("Trying job:", job['job_id']) 
-        print("Feasible route found")
-        print(f"Assigning job {job['job_id']} to courier {courier_obj.courier_id} at position {best_position} with cost {best_cost}")
-
         return courier_obj, best_position
 
 
@@ -96,6 +91,7 @@ class GreedyInsertionPolicy:
         best_position = None
 
         for courier_id, route in routes.items():
+            courier_best_cost = float('inf')
             courier = next(c for c in couriers if c.courier_id == courier_id)
             start_time = courier.current_time
 
@@ -105,7 +101,9 @@ class GreedyInsertionPolicy:
                     route,
                     job,
                     pos,
-                    start_time
+                    start_time,
+                    courier.current_lat,
+                    courier.current_lng
                 )
 
                 if cost is None:
@@ -113,13 +111,13 @@ class GreedyInsertionPolicy:
 
                 cost += self.regularization_lambda * len(route)
 
-                if cost < best_cost:
-                    best_cost = cost
+                if cost < courier_best_cost:
+                    courier_best_cost = cost
+
+                if courier_best_cost < best_cost:
+                    best_cost = courier_best_cost
                     best_courier = courier_id
                     best_position = pos
-            
-            # Debug
-            print(f"Courier {courier_id} current route cost: {best_cost}")
         
         return best_courier, best_position, best_cost
     

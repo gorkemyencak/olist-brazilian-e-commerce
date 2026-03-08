@@ -161,7 +161,7 @@ def route_distance(route):
             lon2 = job_2['pickup_lng']
         )
 
-        return distance
+    return distance
     
 ### 6) Insertion feasibility
 def check_insertion_feasible(
@@ -183,9 +183,31 @@ def compute_insertion_cost(
         route,
         new_job,
         position,
-        start_time
+        start_time,
+        current_lat = None,
+        current_lng = None
 ):
-    """ Compute additional route duration after insertion """
+    """ 
+    Compute additional route duration after inserting 'new job' at 'position' 
+    If current_lat/current_lng provided, use it as route start
+    Returns:
+        - marginal cost
+        - None if infeasble
+    """
+
+    if not route:
+        # single job insertion
+        travel_min = 0
+        if current_lat is not None and current_lng is not None:
+            travel_min = travel_time_minutes(
+                current_lat,
+                current_lng,
+                new_job['pickup_lat'],
+                new_job['pickup_lng']
+            )
+        
+        return travel_min + new_job['service_time_min']
+
     cost = route_duration(route, start_time)
 
     new_route = route.copy()
@@ -193,7 +215,7 @@ def compute_insertion_cost(
 
     new_cost = route_duration(new_route, start_time)
     if new_cost == float('inf'):
-        return float('inf')
+        return None
     
     marginal_cost = new_cost - cost
     return marginal_cost
