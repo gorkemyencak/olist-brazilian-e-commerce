@@ -42,7 +42,7 @@ The dataset contains:
 3. Dynamic Programming Scheduler
 * Evaluating future impact of decisions using:
 
-    cost + \gamma * V(next state)
+    cost + $\gamma$ * V(next state)
 
 * Replacing greedy decision-making with learned policy
 
