@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import copy
 import random
 from src.dynamicProgramming.state import SystemState
@@ -99,6 +100,9 @@ class DPScheduler:
                         cost
                     )
 
+                    if score is None:
+                        continue
+
                     if score < best_score:
                         best_score = score
                         best_action = (courier, position)
@@ -145,16 +149,25 @@ class DPScheduler:
             return route_cost
 
         route_cost += self.insertion_policy.regularization_lambda * len(courier.route) + random.uniform(0, 1e-6)
+
+        try:
+            # simulate next state
+            next_state = copy.deepcopy(state)
+            next_courier = next_state.couriers[courier.courier_id]
+            next_courier.route.insert(position, job)
+
+            # extracting features
+            features = self.feature_extractor.extract(next_state)
+            future_value = self.value_function.predict(features)
+
+            if future_value is None or np.isnan(future_value):
+                future_value = 0.0
+
+            score = route_cost + self.gamma * future_value
+
+            return score
         
-        # simulate next state
-        next_state = copy.deepcopy(state)
-        next_courier = next_state.couriers[courier.courier_id]
-        next_courier.route.insert(position, job)
-
-        # extracting features
-        features = self.feature_extractor.extract(next_state)
-        future_value = self.value_function.predict(features)
-        score = route_cost + self.gamma * future_value
-
-        return score
+        except Exception as e:
+            print('DP evaluation error:', e)
+            return route_cost
             
